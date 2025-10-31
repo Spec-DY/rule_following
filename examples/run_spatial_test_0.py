@@ -3,7 +3,7 @@ Run Spatial Test 0 with per-case verification
 Each case is verified for board recognition before testing
 """
 
-from src.model_client import DummyModelClient, ClaudeModelClient, NovitaModelClient
+from src.model_client import DummyModelClient, DashScopeModelClient, NovitaModelClient
 from src.spatial.test_0_pure_ability import SpatialTest0
 import sys
 import os
@@ -28,9 +28,9 @@ def main():
 
     # ===== Configuration =====
 
-    N_CASES_PER_TYPE = 2     # Number of cases per test type
-    SEED = 42                  # Random seed for reproducibility
-    MODEL_TYPE = "dummy"      # Options: "dummy", "claude", "novita"
+    N_CASES_PER_TYPE = 1     # Number of cases per test type
+    SEED = 53                  # Random seed for reproducibility
+    MODEL_TYPE = "novita"      # Options: "dummy", "dashscope", "novita"
     DUMMY_VERIFICATION_PASS_RATE = 0.7  # For dummy model
 
     # ===== Setup Test =====
@@ -83,12 +83,12 @@ def main():
         )
         print("✓ Using Dummy Model (random answers)\n")
 
-    elif MODEL_TYPE == "claude":
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+    elif MODEL_TYPE == "dashscope":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY not found")
-        model_client = ClaudeModelClient(api_key=api_key)
-        print(f"✓ Using Claude: {model_client.model_name}\n")
+            raise ValueError("DASHSCOPE_API_KEY not found")
+        model_client = DashScopeModelClient(api_key=api_key)
+        print(f"✓ Using DashScope: {model_client.model_name}\n")
 
     elif MODEL_TYPE == "novita":
         api_key = os.getenv("NOVITA_API_KEY")

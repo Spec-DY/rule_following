@@ -33,6 +33,172 @@ class ModelClient(ABC):
         pass
 
 
+class OpenAICompatibleModelClient(ModelClient):
+    """
+    Base class for OpenAI-compatible API clients
+    Supports any service that uses OpenAI's API format
+    """
+
+    # Subclasses should override these
+    DEFAULT_BASE_URL = None
+    ENV_API_KEY = None
+    ENV_BASE_URL = None
+    ENV_MODEL = None
+    SERVICE_NAME = "OpenAI-compatible"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model_name: Optional[str] = None,
+        **kwargs
+    ):
+        """
+        Initialize OpenAI-compatible client
+
+        Args:
+            api_key: API key (if None, reads from environment variable)
+            base_url: API base URL (if None, reads from environment variable)
+            model_name: Model name (if None, reads from environment variable)
+            **kwargs: Additional parameters to pass to the API
+        """
+        # Get configuration from env vars if not provided
+        self.api_key = api_key or os.getenv(self.ENV_API_KEY)
+        self.base_url = base_url or os.getenv(
+            self.ENV_BASE_URL, self.DEFAULT_BASE_URL)
+        model = model_name or os.getenv(self.ENV_MODEL)
+
+        # Validate required parameters
+        if not self.api_key:
+            raise ValueError(
+                f"{self.SERVICE_NAME} API key not found. "
+                f"Please set {self.ENV_API_KEY} environment variable or pass api_key parameter."
+            )
+
+        if not model:
+            raise ValueError(
+                f"{self.SERVICE_NAME} model name not found. "
+                f"Please set {self.ENV_MODEL} environment variable or pass model_name parameter."
+            )
+
+        if not self.base_url:
+            raise ValueError(
+                f"{self.SERVICE_NAME} base URL not found. "
+                f"Please set {self.ENV_BASE_URL} environment variable or pass base_url parameter."
+            )
+
+        super().__init__(model_name=model)
+
+        # Store any additional parameters
+        self.extra_params = kwargs
+
+        # Initialize OpenAI client
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url
+            )
+            print(f"✓ {self.SERVICE_NAME} client initialized")
+            print(f"  Model: {self.model_name}")
+            if self.extra_params:
+                print(f"  Extra params: {self.extra_params}")
+        except ImportError:
+            raise ImportError(
+                "openai package is required. Install it with: pip install 'openai>=1.0.0'"
+            )
+
+    def query(self, prompt: str, image_path: str) -> str:
+        """
+        Call OpenAI-compatible API with image
+
+        Args:
+            prompt: Text prompt
+            image_path: Path to image file
+
+        Returns:
+            Model response
+        """
+        # Read and encode image as base64
+        with open(image_path, "rb") as image_file:
+            image_data = base64.b64encode(image_file.read()).decode("utf-8")
+
+        # Determine image media type
+        if image_path.lower().endswith('.png'):
+            media_type = "image/png"
+        elif image_path.lower().endswith(('.jpg', '.jpeg')):
+            media_type = "image/jpeg"
+        else:
+            media_type = "image/png"  # default
+
+        # Construct data URL
+        image_url = f"data:{media_type};base64,{image_data}"
+
+        try:
+            # Prepare base parameters
+            params = {
+                "model": self.model_name,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_url
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            # Add any extra parameters if provided
+            params.update(self.extra_params)
+
+            # Call API
+            chat_completion_res = self.client.chat.completions.create(**params)
+
+            # Handle streaming vs non-streaming responses
+            if self.extra_params.get('stream', False):
+                # Collect streamed response
+                response_text = ""
+                for chunk in chat_completion_res:
+                    if chunk.choices[0].delta.content:
+                        response_text += chunk.choices[0].delta.content
+                return response_text
+            else:
+                # Return non-streaming response
+                return chat_completion_res.choices[0].message.content
+
+        except Exception as e:
+            raise Exception(f"{self.SERVICE_NAME} API call failed: {str(e)}")
+
+
+class NovitaModelClient(OpenAICompatibleModelClient):
+    """Novita AI model client"""
+
+    DEFAULT_BASE_URL = "https://api.novita.ai/openai"
+    ENV_API_KEY = "NOVITA_API_KEY"
+    ENV_BASE_URL = "NOVITA_BASE_URL"
+    ENV_MODEL = "NOVITA_MODEL"
+    SERVICE_NAME = "Novita"
+
+
+class DashScopeModelClient(OpenAICompatibleModelClient):
+    """Alibaba DashScope model client"""
+
+    DEFAULT_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    ENV_API_KEY = "DASHSCOPE_API_KEY"
+    ENV_BASE_URL = "DASHSCOPE_BASE_URL"
+    ENV_MODEL = "DASHSCOPE_MODEL"
+    SERVICE_NAME = "DashScope"
+
+
 class DummyModelClient(ModelClient):
     """Dummy model client for testing the framework"""
 
@@ -197,131 +363,6 @@ Main answer: {main_answer}"""
         ]
 
         return random.choice(wrong_responses)
-
-
-class NovitaModelClient(ModelClient):
-    """Novita AI model client using OpenAI-compatible API with default settings"""
-
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model_name: Optional[str] = None,
-        **kwargs  # Accept any additional parameters
-    ):
-        """
-        Initialize Novita AI client with minimal configuration
-
-        Args:
-            api_key: Novita API key (if None, reads from NOVITA_API_KEY env var)
-            base_url: API base URL (if None, reads from NOVITA_BASE_URL env var)
-            model_name: Model name (if None, reads from NOVITA_MODEL env var)
-            **kwargs: Any additional parameters to pass to the API
-                     (e.g., temperature, max_tokens, stream, etc.)
-        """
-        # Get configuration from env vars if not provided
-        self.api_key = api_key or os.getenv("NOVITA_API_KEY")
-        self.base_url = base_url or os.getenv(
-            "NOVITA_BASE_URL", "https://api.novita.ai/openai")
-        model = model_name or os.getenv(
-            "NOVITA_MODEL", "qwen/qwen3-vl-30b-a3b-thinking")
-
-        if not self.api_key:
-            raise ValueError(
-                "Novita API key not found. Please set NOVITA_API_KEY environment variable "
-                "or pass api_key parameter."
-            )
-
-        super().__init__(model_name=model)
-
-        # Store any additional parameters
-        self.extra_params = kwargs
-
-        # Initialize OpenAI client with Novita's base URL
-        try:
-            from openai import OpenAI
-            self.client = OpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url
-            )
-            print(f"✓ Novita client initialized")
-            print(f"  Model: {self.model_name}")
-            if self.extra_params:
-                print(f"  Extra params: {self.extra_params}")
-        except ImportError:
-            raise ImportError(
-                "openai package is required. Install it with: pip install 'openai>=1.0.0'"
-            )
-
-    def query(self, prompt: str, image_path: str) -> str:
-        """
-        Call Novita AI API with image using default settings
-
-        Args:
-            prompt: Text prompt
-            image_path: Path to image file
-
-        Returns:
-            Model response
-        """
-        # Read and encode image as base64
-        with open(image_path, "rb") as image_file:
-            image_data = base64.b64encode(image_file.read()).decode("utf-8")
-
-        # Determine image media type
-        if image_path.lower().endswith('.png'):
-            media_type = "image/png"
-        elif image_path.lower().endswith(('.jpg', '.jpeg')):
-            media_type = "image/jpeg"
-        else:
-            media_type = "image/png"  # default
-
-        # Construct data URL
-        image_url = f"data:{media_type};base64,{image_data}"
-
-        try:
-            # Prepare base parameters
-            params = {
-                "model": self.model_name,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_url
-                                }
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
-            }
-
-            # Add any extra parameters if provided
-            params.update(self.extra_params)
-
-            # Call API
-            chat_completion_res = self.client.chat.completions.create(**params)
-
-            # Handle streaming vs non-streaming responses
-            if self.extra_params.get('stream', False):
-                # Collect streamed response
-                response_text = ""
-                for chunk in chat_completion_res:
-                    if chunk.choices[0].delta.content:
-                        response_text += chunk.choices[0].delta.content
-                return response_text
-            else:
-                # Return non-streaming response
-                return chat_completion_res.choices[0].message.content
-
-        except Exception as e:
-            raise Exception(f"Novita API call failed: {str(e)}")
 
 
 class ClaudeModelClient(ModelClient):
