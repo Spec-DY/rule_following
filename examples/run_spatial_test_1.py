@@ -31,7 +31,7 @@ def main():
     # Number of cases per piece type (total = 6 * N_CASES_PER_TYPE)
     N_CASES_PER_TYPE = 10
     SEED = 42                  # Random seed for reproducibility
-    MODEL_TYPE = "dummy"      # Options: "dummy", "dashscope", "novita"
+    MODEL_TYPE = "dashscope"      # Options: "dummy", "dashscope", "novita"
     DUMMY_VERIFICATION_PASS_RATE = 0.8  # For dummy model
 
     # ===== Setup Test =====

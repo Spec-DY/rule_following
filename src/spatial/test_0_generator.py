@@ -274,7 +274,7 @@ class SpatialTest0Generator:
                         "case_id": f"dir_{direction}_pos_{pos_count+1}",
                         "type": "relative_position",
                         "squares": [sq1, sq2],
-                        "question": f"Is {sq2} {direction} of {sq1}?",
+                        "question": f"Is {sq2} {direction} of the other highlighted square?",
                         "expected": "yes",
                         "reasoning": f"{sq2} is indeed {direction} of {sq1}"
                     })
@@ -294,7 +294,7 @@ class SpatialTest0Generator:
                         "case_id": f"dir_{direction}_neg_{neg_count+1}",
                         "type": "relative_position",
                         "squares": [sq1, sq2],
-                        "question": f"Is {sq2} {direction} of {sq1}?",
+                        "question": f"Is {sq2} {direction} of the other highlighted square?",
                         "expected": "no",
                         "reasoning": f"{sq2} is {actual_dir} of {sq1}, no {direction} component"
                     })
@@ -303,67 +303,7 @@ class SpatialTest0Generator:
 
         return cases
 
-    # ============= Type 4: Distance =============
-
-    def _distance(self, sq1: str, sq2: str) -> float:
-        """Calculate Euclidean distance between squares"""
-        f1, r1 = self._square_to_coords(sq1)
-        f2, r2 = self._square_to_coords(sq2)
-        return ((f2-f1)**2 + (r2-r1)**2) ** 0.5
-
-    def generate_distance_tests(self, n_positive: int = 5, n_negative: int = 5) -> List[Dict]:
-        """
-        Generate distance comparison tests
-
-        Args:
-            n_positive: Number of positive cases (closer)
-            n_negative: Number of negative cases (not closer)
-        """
-        cases = []
-
-        # Generate random triples and check distances
-        attempts = 0
-        pos_count = 0
-        neg_count = 0
-
-        while (pos_count < n_positive or neg_count < n_negative) and attempts < 2000:
-            # Pick 3 different squares
-            squares = set()
-            while len(squares) < 3:
-                squares.add(self._random_square())
-            sq1, sq2, sq3 = list(squares)
-
-            d12 = self._distance(sq1, sq2)
-            d13 = self._distance(sq1, sq3)
-
-            is_closer = d12 < d13
-
-            if pos_count < n_positive and is_closer:
-                cases.append({
-                    "case_id": f"distance_pos_{pos_count+1}",
-                    "type": "distance",
-                    "squares": [sq1, sq2, sq3],
-                    "question": f"Is {sq2} closer to {sq1} than {sq3} is to {sq1}?",
-                    "expected": "yes",
-                    "reasoning": f"Distance {sq1}-{sq2}: {d12:.2f}, {sq1}-{sq3}: {d13:.2f}"
-                })
-                pos_count += 1
-            elif neg_count < n_negative and not is_closer:
-                cases.append({
-                    "case_id": f"distance_neg_{neg_count+1}",
-                    "type": "distance",
-                    "squares": [sq1, sq2, sq3],
-                    "question": f"Is {sq2} closer to {sq1} than {sq3} is to {sq1}?",
-                    "expected": "no",
-                    "reasoning": f"Distance {sq1}-{sq2}: {d12:.2f}, {sq1}-{sq3}: {d13:.2f}"
-                })
-                neg_count += 1
-
-            attempts += 1
-
-        return cases
-
-    # ============= Type 5: Path Clear =============
+    # ============= Type 4: Path Clear =============
 
     def generate_path_clear_tests(self, n_positive: int = 5, n_negative: int = 5) -> List[Dict]:
         """
@@ -413,7 +353,7 @@ class SpatialTest0Generator:
                 "type": "path_clear",
                 "pieces": pieces,
                 "squares": [sq1, sq2],
-                "question": f"Is the path from {sq1} to {sq2} clear (no pieces blocking)?",
+                "question": f"Is the path between the two highlighted squares clear (no pieces blocking)?",
                 "expected": "yes",
                 "reasoning": "No pieces block the path"
             })
@@ -459,7 +399,7 @@ class SpatialTest0Generator:
                 "type": "path_clear",
                 "pieces": pieces,
                 "squares": [sq1, sq2],
-                "question": f"Is the path from {sq1} to {sq2} clear (no pieces blocking)?",
+                "question": f"Is the path between the two highlighted squares clear (no pieces blocking)?",
                 "expected": "no",
                 "reasoning": f"Path blocked by piece at {list(pieces.keys())[0]}"
             })
@@ -497,12 +437,9 @@ class SpatialTest0Generator:
         all_cases.extend(self.generate_direction_tests(
             n_per_direction=max(1, n_per_type // 8)))
 
-        print(f"Generating distance tests...")
-        all_cases.extend(self.generate_distance_tests(n_pos, n_neg))
-
         print(f"Generating path clear tests...")
         all_cases.extend(self.generate_path_clear_tests(n_pos, n_neg))
 
-        print(f"\n✔ Total generated: {len(all_cases)} test cases")
+        print(f"\n✓ Total generated: {len(all_cases)} test cases")
 
         return all_cases
