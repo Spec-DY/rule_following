@@ -33,6 +33,12 @@ class TestResult:
     piece_type: Optional[str] = None  # for spatial
     rule_type: Optional[str] = None  # for temporal
 
+    # === Recognition verification (NEW) ===
+    verification_question: Optional[str] = None
+    verification_expected: Optional[str] = None
+    verification_response: Optional[str] = None
+    verification_passed: Optional[bool] = None
+
     # Question and answer
     question: str = ""
     expected_answer: str = ""  # "yes", "no", "unknown"

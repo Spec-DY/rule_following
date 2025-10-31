@@ -67,7 +67,7 @@ class SpatialTest0Generator:
                 "type": "same_line",
                 "subtype": "same_file",
                 "squares": [sq1, sq2],
-                "question": f"Are the squares {sq1} and {sq2} on the same file (vertical line)?",
+                "question": f"Are the highlighted squares on the same file (vertical line)?",
                 "expected": "yes",
                 "reasoning": f"Both on file {file}"
             })
@@ -84,7 +84,7 @@ class SpatialTest0Generator:
                 "type": "same_line",
                 "subtype": "same_file",
                 "squares": [sq1, sq2],
-                "question": f"Are the squares {sq1} and {sq2} on the same file (vertical line)?",
+                "question": f"Are the highlighted squares on the same file (vertical line)?",
                 "expected": "no",
                 "reasoning": f"Different files: {sq1[0]} vs {sq2[0]}"
             })
@@ -112,7 +112,7 @@ class SpatialTest0Generator:
                 "type": "same_line",
                 "subtype": "same_rank",
                 "squares": [sq1, sq2],
-                "question": f"Are the squares {sq1} and {sq2} on the same rank (horizontal line)?",
+                "question": f"Are the highlighted squares on the same rank (horizontal line)?",
                 "expected": "yes",
                 "reasoning": f"Both on rank {rank}"
             })
@@ -128,7 +128,7 @@ class SpatialTest0Generator:
                 "type": "same_line",
                 "subtype": "same_rank",
                 "squares": [sq1, sq2],
-                "question": f"Are the squares {sq1} and {sq2} on the same rank (horizontal line)?",
+                "question": f"Are the highlighted squares on the same rank (horizontal line)?",
                 "expected": "no",
                 "reasoning": f"Different ranks: {sq1[1]} vs {sq2[1]}"
             })
@@ -164,7 +164,7 @@ class SpatialTest0Generator:
                     "case_id": f"diagonal_pos_{len(cases)+1}",
                     "type": "diagonal",
                     "squares": [sq1, sq2],
-                    "question": f"Are the squares {sq1} and {sq2} on the same diagonal?",
+                    "question": f"Are the highlighted squares on the same diagonal?",
                     "expected": "yes",
                     "reasoning": "On same diagonal"
                 })
@@ -180,7 +180,7 @@ class SpatialTest0Generator:
                     "case_id": f"diagonal_neg_{neg_count+1}",
                     "type": "diagonal",
                     "squares": [sq1, sq2],
-                    "question": f"Are the squares {sq1} and {sq2} on the same diagonal?",
+                    "question": f"Are the highlighted squares on the same diagonal?",
                     "expected": "no",
                     "reasoning": "Not on same diagonal"
                 })
@@ -218,6 +218,38 @@ class SpatialTest0Generator:
         else:
             return "same"
 
+    def _has_component_of(self, actual_dir: str, target_dir: str) -> bool:
+        """
+        Check if actual direction contains a component of target direction
+
+        Examples:
+            - target: "south", actual: "south" → True
+            - target: "south", actual: "southwest" → True (has south component)
+            - target: "south", actual: "north" → False (no south component)
+            - target: "northeast", actual: "northeast" → True
+            - target: "northeast", actual: "north" → False (northeast is composite)
+        """
+        # Define which directions contain each component
+        north_dirs = ["north", "northeast", "northwest"]
+        south_dirs = ["south", "southeast", "southwest"]
+        east_dirs = ["east", "northeast", "southeast"]
+        west_dirs = ["west", "northwest", "southwest"]
+
+        direction_map = {
+            "north": north_dirs,
+            "south": south_dirs,
+            "east": east_dirs,
+            "west": west_dirs,
+            # Composite directions only match themselves
+            "northeast": ["northeast"],
+            "southeast": ["southeast"],
+            "southwest": ["southwest"],
+            "northwest": ["northwest"],
+        }
+
+        # Check if actual_dir is in the target direction's component list
+        return actual_dir in direction_map.get(target_dir, [])
+
     def generate_direction_tests(self, n_per_direction: int = 2) -> List[Dict]:
         """
         Generate relative position tests
@@ -230,7 +262,7 @@ class SpatialTest0Generator:
                       "south", "southwest", "west", "northwest"]
 
         for direction in directions:
-            # Positive cases
+            # Positive cases - must be exact match
             pos_count = 0
             attempts = 0
             while pos_count < n_per_direction and attempts < 200:
@@ -249,21 +281,22 @@ class SpatialTest0Generator:
                     pos_count += 1
                 attempts += 1
 
-            # Negative cases
+            # Negative cases - must NOT have any component of target direction
             neg_count = 0
             attempts = 0
             while neg_count < n_per_direction and attempts < 200:
                 sq1, sq2 = self._random_square_pair()
                 actual_dir = self._get_direction(sq1, sq2)
 
-                if actual_dir != direction and actual_dir != "same":
+                # Use the new method: actual_dir must NOT contain target direction component
+                if actual_dir != "same" and not self._has_component_of(actual_dir, direction):
                     cases.append({
                         "case_id": f"dir_{direction}_neg_{neg_count+1}",
                         "type": "relative_position",
                         "squares": [sq1, sq2],
                         "question": f"Is {sq2} {direction} of {sq1}?",
                         "expected": "no",
-                        "reasoning": f"{sq2} is {actual_dir} of {sq1}, not {direction}"
+                        "reasoning": f"{sq2} is {actual_dir} of {sq1}, no {direction} component"
                     })
                     neg_count += 1
                 attempts += 1
