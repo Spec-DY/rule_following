@@ -24,21 +24,23 @@ class VerificationQuestionGenerator:
         squares = case.get('squares', [])
         pieces = case.get('pieces', {})
 
-        # Choose verification strategy based on case type
+        # Test 0 case types: spatial reasoning without chess rules
         if case_type in ['same_line', 'diagonal', 'relative_position']:
-            # For cases with highlighted squares, ask what's highlighted
             return VerificationQuestionGenerator._verify_highlighted_squares(squares)
 
         elif case_type == 'distance':
-            # For distance cases (3 squares), verify all three
             return VerificationQuestionGenerator._verify_highlighted_squares(squares)
 
         elif case_type == 'path_clear':
-            # For path cases, verify both squares and pieces
             return VerificationQuestionGenerator._verify_pieces_and_squares(squares, pieces)
 
+        # Test 1 case types: chess piece movement rules
+        elif case_type in ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn']:
+            # For chess pieces, verify piece location and target square
+            return VerificationQuestionGenerator._verify_piece_location(squares, pieces)
+
+        # Default: verify highlighted squares
         else:
-            # Default: verify highlighted squares
             return VerificationQuestionGenerator._verify_highlighted_squares(squares)
 
     @staticmethod
@@ -90,7 +92,46 @@ class VerificationQuestionGenerator:
 
         else:
             # Multiple pieces
+            return {
+                'verification_question': f"How many pieces are on this board?",
+                'verification_expected': str(len(pieces)),
+                'verification_keywords': [str(len(pieces)), f"{len(pieces)}"]
+            }
+
+    @staticmethod
+    def _verify_piece_location(squares: List[str], pieces: Dict[str, str]) -> Dict:
+        """
+        For chess piece movement tests: verify the piece location
+
+        Args:
+            squares: [from_square, to_square]
+            pieces: {square: piece_type}
+        """
+        if len(pieces) == 0 or len(squares) == 0:
+            # Fallback to squares only
+            return VerificationQuestionGenerator._verify_highlighted_squares(squares)
+
+        # Get the piece square (usually the first square in the list)
+        piece_square = list(pieces.keys())[0]
+
+        # Use different verification strategies based on number of pieces
+        if len(pieces) == 1:
+            # Single piece: ask where it is
+            return {
+                'verification_question': f"I see one chess piece on this board. What square is it on? (Answer with square name only, e.g., 'e4')",
+                'verification_expected': piece_square,
+                'verification_keywords': [piece_square]
+            }
+        elif len(pieces) == 2:
+            # Two pieces (e.g., blocking piece): ask about both
             piece_squares = list(pieces.keys())
+            return {
+                'verification_question': f"I see pieces on this board. What squares are they on? (List them)",
+                'verification_expected': f"{piece_squares[0]} and {piece_squares[1]}",
+                'verification_keywords': piece_squares
+            }
+        else:
+            # Multiple pieces: ask count
             return {
                 'verification_question': f"How many pieces are on this board?",
                 'verification_expected': str(len(pieces)),
@@ -113,7 +154,7 @@ class VerificationQuestionGenerator:
 
         # Remove common punctuation
         response_clean = response_lower.replace(".", "").replace(
-            ",", "").replace("!", "").replace("?", "")
+            ",", "").replace("!", "").replace("?", "").replace("'", "")
 
         keywords = verification_info.get('verification_keywords', [])
 

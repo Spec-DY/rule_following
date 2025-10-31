@@ -1,9 +1,9 @@
 """
-Run Spatial Test 0 with per-case verification
+Run Spatial Test 1 with per-case verification
 Each case is verified for board recognition before testing
 """
 
-from src.spatial.test_0_pure_ability import SpatialTest0
+from src.spatial.test_1_rule_following import SpatialTest1
 from src.model_client import DummyModelClient, DashScopeModelClient, NovitaModelClient, ClaudeModelClient
 import sys
 import os
@@ -14,62 +14,63 @@ sys.path.insert(0, os.path.abspath(
 
 def main():
     """
-    Run Spatial Test 0 with per-case verification
+    Run Spatial Test 1 with per-case verification
 
     For each test case:
-    1. Ask verification question (e.g., "What squares are highlighted?")
+    1. Ask verification question (e.g., "What pieces are on the board?")
     2. Only if verified, ask the actual test question
     3. Track both verification rate and test accuracy
     """
 
     print("\n" + "="*60)
-    print("SPATIAL TEST 0: PURE SPATIAL REASONING")
+    print("SPATIAL TEST 1: RULE FOLLOWING BASELINE")
     print("="*60)
 
     # ===== Configuration =====
 
-    N_CASES_PER_TYPE = 2      # Number of cases per test type
+    # Number of cases per piece type (total = 6 * N_CASES_PER_TYPE)
+    N_CASES_PER_TYPE = 10
     SEED = 42                  # Random seed for reproducibility
-    MODEL_TYPE = "dashscope"      # Options: "dummy", "dashscope", "novita"
-    DUMMY_VERIFICATION_PASS_RATE = 0.7  # For dummy model
+    MODEL_TYPE = "dummy"      # Options: "dummy", "dashscope", "novita"
+    DUMMY_VERIFICATION_PASS_RATE = 0.8  # For dummy model
 
     # ===== Setup Test =====
 
-    test0 = SpatialTest0(
-        base_output_dir="./output/spatial_test_0",
+    test1 = SpatialTest1(
+        base_output_dir="./output/spatial_test_1",
         n_cases_per_type=N_CASES_PER_TYPE,
         seed=SEED,
         auto_timestamp=True
     )
 
-    print(f"\nOutput directory: {test0.output_dir}")
+    print(f"\nOutput directory: {test1.output_dir}")
     print(f"Configuration:")
-    print(f"  - Cases per type: {N_CASES_PER_TYPE}")
+    print(f"  - Cases per piece type: {N_CASES_PER_TYPE}")
+    print(f"  - Total cases: {N_CASES_PER_TYPE * 6} (6 piece types)")
     print(f"  - Random seed: {SEED}")
     print(f"  - Model: {MODEL_TYPE}")
 
     # ===== Generate Test Cases =====
 
-    cases = test0.generate_test_cases()
+    cases = test1.generate_test_cases()
     print(f"\n✓ Generated {len(cases)} test cases")
     print("  (Each with verification question + test question)")
 
     # Show distribution
-    type_counts = {}
+    piece_counts = {}
     for case in cases:
-        case_type = case.get('type', 'unknown')
-        subtype = case.get('subtype', '')
-        key = f"{case_type}" if not subtype else f"{case_type}_{subtype}"
-        type_counts[key] = type_counts.get(key, 0) + 1
+        piece_type = case.get('type', 'unknown')
+        piece_counts[piece_type] = piece_counts.get(piece_type, 0) + 1
 
-    print("\nTest case distribution:")
-    for case_type in sorted(type_counts.keys()):
-        count = type_counts[case_type]
-        print(f"  {case_type:20s}: {count:3d} cases")
+    print("\nTest case distribution by piece type:")
+    for piece_type in ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn']:
+        if piece_type in piece_counts:
+            count = piece_counts[piece_type]
+            print(f"  {piece_type.capitalize():10s}: {count:3d} cases")
 
     # ===== Create Test Images =====
 
-    test0.create_test_images()
+    test1.create_test_images()
 
     # ===== Setup Model =====
 
@@ -105,26 +106,30 @@ def main():
         print(f"\n{'='*60}")
         print("DUMMY MODEL SETUP")
         print("="*60)
-        model_client.set_test_cases(test0.test_cases)
+        model_client.set_test_cases(test1.test_cases)
         print()
 
     # ===== Run Test =====
 
-    results, stats = test0.run_test(model_client)
+    results, stats = test1.run_test(model_client)
 
     # ===== Summary =====
 
     print(f"✓ Test completed!")
     print(f"\nKey Insights:")
+    print(f"  - Total test cases: {stats['total']}")
     print(
-        f"  - Board recognition rate: {stats['verification_passed']}/{stats['total']}")
+        f"  - Board recognition rate: {stats['verification_passed']}/{stats['total']} ({stats['verification_passed']/stats['total']:.1%})")
     if stats['verification_passed'] > 0:
         acc = stats['test_correct_given_verified'] / \
             stats['verification_passed']
         print(f"  - Test accuracy (when recognized): {acc:.1%}")
+        print(
+            f"  - Overall accuracy (including failures): {stats['test_correct']}/{stats['total']} ({stats['test_correct']/stats['total']:.1%})")
     print(f"\nAll results saved in:")
-    print(f"  {test0.output_dir}/")
-    print(f"  - test_0_results.json (with verification info)")
+    print(f"  {test1.output_dir}/")
+    print(f"  - test_1_results.json (with verification info)")
+    print(f"  - {len(cases)} test images (.png)")
 
     print(f"\n{'='*60}\n")
 
