@@ -1,6 +1,7 @@
 """
 Automated test case generator for Temporal Test 1
 Temporal rule following - En Passant and Castling
+
 """
 
 import random
@@ -66,6 +67,35 @@ class TemporalTest1Generator:
             counts[i] += 1
         return counts
 
+    def _get_safe_squares_for_castling(self, color: str, side: str) -> List[str]:
+        """
+        Get safe squares where we can place other pieces without blocking castling
+
+        Args:
+            color: 'white' or 'black'
+            side: 'kingside' or 'queenside'
+
+        Returns:
+            List of safe square names
+        """
+        # Castling path squares that must be empty
+        if color == 'white':
+            if side == 'kingside':
+                blocked = ['e1', 'f1', 'g1', 'h1']
+            else:
+                blocked = ['a1', 'b1', 'c1', 'd1', 'e1']
+        else:  # black
+            if side == 'kingside':
+                blocked = ['e8', 'f8', 'g8', 'h8']
+            else:
+                blocked = ['a8', 'b8', 'c8', 'd8', 'e8']
+
+        # All other squares are safe
+        all_squares = [f + r for f in self.files for r in self.ranks]
+        safe = [sq for sq in all_squares if sq not in blocked]
+
+        return safe
+
     # ============= Type 1: En Passant Rule Judgment =============
 
     def generate_en_passant_rule_tests(self, n_cases: int = 10) -> List[Dict]:
@@ -95,7 +125,6 @@ class TemporalTest1Generator:
 
             black_start = black_file + '7'
             black_end = black_file + '5'
-            capture_sq = black_file + '6'
 
             cases.append({
                 "case_id": f"en_passant_rule_pos_{i+1}",
@@ -106,7 +135,7 @@ class TemporalTest1Generator:
                     {"pieces": {white_sq: 'P', black_end: 'p'}, "squares": []}
                 ],
                 "label": "These are consecutive board states (State 2 immediately follows State 1)",
-                "question": f"Can white capture the black pawn en passant?",
+                "question": "Can white capture the black pawn en passant?",
                 "expected": "yes",
                 "reasoning": f"Black pawn moved 2 squares from {black_start} to {black_end}"
             })
@@ -129,7 +158,6 @@ class TemporalTest1Generator:
             # Pawn only moved 1 square (from 6 to 5)
             black_start = black_file + '6'
             black_end = black_file + '5'
-            capture_sq = black_file + '6'
 
             cases.append({
                 "case_id": f"en_passant_rule_neg_{i+1}",
@@ -140,7 +168,7 @@ class TemporalTest1Generator:
                     {"pieces": {white_sq: 'P', black_end: 'p'}, "squares": []}
                 ],
                 "label": "These are consecutive states",
-                "question": f"Can white capture the black pawn en passant?",
+                "question": "Can white capture the black pawn en passant?",
                 "expected": "no",
                 "reasoning": f"Black pawn only moved 1 square from {black_start} to {black_end}"
             })
@@ -160,7 +188,6 @@ class TemporalTest1Generator:
 
             black_start = black_file + '7'
             black_end = black_file + '5'
-            capture_sq = black_file + '6'
 
             cases.append({
                 "case_id": f"en_passant_rule_neg_{neg_type_1 + i + 1}",
@@ -171,7 +198,7 @@ class TemporalTest1Generator:
                     {"pieces": {white_sq: 'P', black_end: 'p'}, "squares": []}
                 ],
                 "label": "These are consecutive states",
-                "question": f"Can white capture the black pawn en passant?",
+                "question": "Can white capture the black pawn en passant?",
                 "expected": "no",
                 "reasoning": f"White pawn at {white_sq} is not adjacent to black pawn at {black_end}"
             })
@@ -183,78 +210,138 @@ class TemporalTest1Generator:
     def generate_castling_rule_tests(self, n_cases: int = 10) -> List[Dict]:
         """
         Generate castling rule judgment tests
-        2-3 states: Check if castling is possible
+        3-4 states: Check if castling is possible
 
-        Negative types (6 kinds):
+        ✅ Positive cases: Show time sequence proving King/Rook never moved
+        ✅ Avoid repetition by limiting to 4 core scenarios (white/black × kingside/queenside)
+
+        Negative types (4 kinds):
         1. king_moved - King has moved before
         2. rook_moved - Rook has moved before
         3. path_blocked - Pieces blocking the path
         4. in_check - King is currently in check
-        5. through_check - King would pass through attacked square
-        6. into_check - King would land on attacked square
 
         Args:
             n_cases: Total number of cases
         """
         cases = []
-        n_pos = n_cases // 2
-        n_neg = n_cases - n_pos
 
-        # Positive cases: Can castle
+        # ============= POSITIVE CASES =============
+        # Only 4 core valid scenarios exist, so we limit positive cases to avoid repetition
+        # Each shows a meaningful time sequence with other pieces moving
+
+        positive_templates = [
+            # White kingside
+            {
+                "color": "white",
+                "side": "kingside",
+                "king_sq": "e1",
+                "rook_sq": "h1",
+                "states": [
+                    {"pieces": {'e1': 'K', 'h1': 'R', 'e2': 'P'}, "squares": []},
+                    {"pieces": {'e1': 'K', 'h1': 'R', 'e4': 'P'}, "squares": []},
+                    {"pieces": {'e1': 'K', 'h1': 'R',
+                                'e4': 'P', 'd2': 'P'}, "squares": []},
+                ],
+                "reasoning": "King and Rook never moved (only pawns moved)"
+            },
+            # White queenside
+            {
+                "color": "white",
+                "side": "queenside",
+                "king_sq": "e1",
+                "rook_sq": "a1",
+                "states": [
+                    {"pieces": {'e1': 'K', 'a1': 'R', 'd2': 'P'}, "squares": []},
+                    {"pieces": {'e1': 'K', 'a1': 'R', 'd4': 'P'}, "squares": []},
+                    {"pieces": {'e1': 'K', 'a1': 'R',
+                                'd4': 'P', 'c3': 'N'}, "squares": []},
+                ],
+                "reasoning": "King and Rook never moved (pawn and knight moved)"
+            },
+            # Black kingside
+            {
+                "color": "black",
+                "side": "kingside",
+                "king_sq": "e8",
+                "rook_sq": "h8",
+                "states": [
+                    {"pieces": {'e8': 'k', 'h8': 'r', 'e7': 'p'}, "squares": []},
+                    {"pieces": {'e8': 'k', 'h8': 'r', 'e5': 'p'}, "squares": []},
+                    {"pieces": {'e8': 'k', 'h8': 'r',
+                                'e5': 'p', 'd7': 'p'}, "squares": []},
+                ],
+                "reasoning": "King and Rook never moved (only pawns moved)"
+            },
+            # Black queenside
+            {
+                "color": "black",
+                "side": "queenside",
+                "king_sq": "e8",
+                "rook_sq": "a8",
+                "states": [
+                    {"pieces": {'e8': 'k', 'a8': 'r', 'd7': 'p'}, "squares": []},
+                    {"pieces": {'e8': 'k', 'a8': 'r', 'd5': 'p'}, "squares": []},
+                    {"pieces": {'e8': 'k', 'a8': 'r',
+                                'd5': 'p', 'c6': 'n'}, "squares": []},
+                ],
+                "reasoning": "King and Rook never moved (pawn and knight moved)"
+            },
+        ]
+
+        # Generate positive cases (at most 4-8 cases to avoid repetition)
+        n_pos = min(8, n_cases // 2)  # At most 8 positive cases
+
         for i in range(n_pos):
-            # Randomly choose kingside or queenside
-            side = random.choice(['kingside', 'queenside'])
-
-            if side == 'kingside':
-                rook_sq = 'h1'
-            else:
-                rook_sq = 'a1'
+            template = positive_templates[i % len(positive_templates)]
 
             cases.append({
                 "case_id": f"castling_rule_pos_{i+1}",
                 "type": "castling_rule",
-                "subtype": f"valid_{side}",
-                "states": [
-                    {"pieces": {'e1': 'K', rook_sq: 'R'}, "squares": []},
-                    {"pieces": {'e1': 'K', rook_sq: 'R'}, "squares": []}
-                ],
-                "label": "King and Rook have never moved. Path is clear and safe.",
-                "question": f"Can white castle {side}?",
+                "subtype": f"valid_{template['color']}_{template['side']}",
+                "states": template["states"],
+                "label": "States shown in chronological order. Other pieces moved, but King and Rook never moved.",
+                "question": f"Can {template['color']} castle {template['side']}?",
                 "expected": "yes",
-                "reasoning": f"All conditions met, can castle {side}"
+                "reasoning": template["reasoning"]
             })
 
-        # Negative cases: Distribute across 6 failure types
-        neg_types = [
-            'king_moved',
-            'rook_moved',
-            'path_blocked',
-            'in_check',
-            'through_check',
-            'into_check'
-        ]
+        # ============= NEGATIVE CASES =============
+        n_neg = n_cases - n_pos
+
+        neg_types = ['king_moved', 'rook_moved', 'path_blocked', 'in_check']
         neg_counts = self._distribute_cases(n_neg, len(neg_types))
 
         neg_idx = 0
 
         # Type 1: King moved
         for i in range(neg_counts[0]):
+            color = random.choice(['white', 'black'])
             side = random.choice(['kingside', 'queenside'])
-            rook_sq = 'h1' if side == 'kingside' else 'a1'
+
+            if color == 'white':
+                king_sq, rook_sq = 'e1', ('h1' if side == 'kingside' else 'a1')
+                king_temp = 'e2'
+                king_symbol, rook_symbol = 'K', 'R'
+            else:
+                king_sq, rook_sq = 'e8', ('h8' if side == 'kingside' else 'a8')
+                king_temp = 'e7'
+                king_symbol, rook_symbol = 'k', 'r'
 
             cases.append({
                 "case_id": f"castling_rule_neg_{neg_idx + 1}",
                 "type": "castling_rule",
                 "subtype": "king_moved",
                 "states": [
-                    {"pieces": {'e1': 'K', rook_sq: 'R'}, "squares": []},
-                    {"pieces": {'e2': 'K', rook_sq: 'R'},
-                        "squares": []},  # King moved
-                    {"pieces": {'e1': 'K', rook_sq: 'R'},
-                        "squares": []}   # King returned
+                    {"pieces": {king_sq: king_symbol,
+                                rook_sq: rook_symbol}, "squares": []},
+                    {"pieces": {king_temp: king_symbol,
+                                rook_sq: rook_symbol}, "squares": []},
+                    {"pieces": {king_sq: king_symbol,
+                                rook_sq: rook_symbol}, "squares": []}
                 ],
                 "label": "States shown in chronological order",
-                "question": f"Can white castle {side}?",
+                "question": f"Can {color} castle {side}?",
                 "expected": "no",
                 "reasoning": "King has moved (even though it returned to original position)"
             })
@@ -262,23 +349,32 @@ class TemporalTest1Generator:
 
         # Type 2: Rook moved
         for i in range(neg_counts[1]):
+            color = random.choice(['white', 'black'])
             side = random.choice(['kingside', 'queenside'])
-            rook_sq = 'h1' if side == 'kingside' else 'a1'
-            rook_temp = 'h2' if side == 'kingside' else 'a2'
+
+            if color == 'white':
+                king_sq, rook_sq = 'e1', ('h1' if side == 'kingside' else 'a1')
+                rook_temp = ('h2' if side == 'kingside' else 'a2')
+                king_symbol, rook_symbol = 'K', 'R'
+            else:
+                king_sq, rook_sq = 'e8', ('h8' if side == 'kingside' else 'a8')
+                rook_temp = ('h7' if side == 'kingside' else 'a7')
+                king_symbol, rook_symbol = 'k', 'r'
 
             cases.append({
                 "case_id": f"castling_rule_neg_{neg_idx + 1}",
                 "type": "castling_rule",
                 "subtype": "rook_moved",
                 "states": [
-                    {"pieces": {'e1': 'K', rook_sq: 'R'}, "squares": []},
-                    {"pieces": {'e1': 'K', rook_temp: 'R'},
-                        "squares": []},  # Rook moved
-                    {"pieces": {'e1': 'K', rook_sq: 'R'},
-                        "squares": []}     # Rook returned
+                    {"pieces": {king_sq: king_symbol,
+                                rook_sq: rook_symbol}, "squares": []},
+                    {"pieces": {king_sq: king_symbol,
+                                rook_temp: rook_symbol}, "squares": []},
+                    {"pieces": {king_sq: king_symbol,
+                                rook_sq: rook_symbol}, "squares": []}
                 ],
                 "label": "States shown in chronological order",
-                "question": f"Can white castle {side}?",
+                "question": f"Can {color} castle {side}?",
                 "expected": "no",
                 "reasoning": "Rook has moved"
             })
@@ -286,16 +382,34 @@ class TemporalTest1Generator:
 
         # Type 3: Path blocked
         for i in range(neg_counts[2]):
+            color = random.choice(['white', 'black'])
             side = random.choice(['kingside', 'queenside'])
 
-            if side == 'kingside':
-                blocking_sq = random.choice(['f1', 'g1'])
-                blocker_piece = random.choice(['N', 'B'])
-                pieces = {'e1': 'K', 'h1': 'R', blocking_sq: blocker_piece}
+            if color == 'white':
+                king_sq = 'e1'
+                if side == 'kingside':
+                    rook_sq = 'h1'
+                    blocking_sq = random.choice(['f1', 'g1'])
+                    blocker_piece = random.choice(['N', 'B'])
+                else:
+                    rook_sq = 'a1'
+                    blocking_sq = random.choice(['b1', 'c1', 'd1'])
+                    blocker_piece = random.choice(['N', 'B', 'Q'])
+                king_symbol, rook_symbol = 'K', 'R'
             else:
-                blocking_sq = random.choice(['b1', 'c1', 'd1'])
-                blocker_piece = random.choice(['N', 'B', 'Q'])
-                pieces = {'e1': 'K', 'a1': 'R', blocking_sq: blocker_piece}
+                king_sq = 'e8'
+                if side == 'kingside':
+                    rook_sq = 'h8'
+                    blocking_sq = random.choice(['f8', 'g8'])
+                    blocker_piece = random.choice(['n', 'b'])
+                else:
+                    rook_sq = 'a8'
+                    blocking_sq = random.choice(['b8', 'c8', 'd8'])
+                    blocker_piece = random.choice(['n', 'b', 'q'])
+                king_symbol, rook_symbol = 'k', 'r'
+
+            pieces = {king_sq: king_symbol,
+                      rook_sq: rook_symbol, blocking_sq: blocker_piece}
 
             cases.append({
                 "case_id": f"castling_rule_neg_{neg_idx + 1}",
@@ -303,117 +417,48 @@ class TemporalTest1Generator:
                 "subtype": "path_blocked",
                 "states": [
                     {"pieces": pieces, "squares": []},
+                    {"pieces": pieces, "squares": []},
                     {"pieces": pieces, "squares": []}
                 ],
                 "label": "King and Rook have never moved",
-                "question": f"Can white castle {side}?",
+                "question": f"Can {color} castle {side}?",
                 "expected": "no",
                 "reasoning": f"Path is blocked by piece at {blocking_sq}"
             })
             neg_idx += 1
 
-        # Type 4: In check (out of check)
+        # Type 4: In check
         for i in range(neg_counts[3]):
+            color = random.choice(['white', 'black'])
             side = random.choice(['kingside', 'queenside'])
-            rook_sq = 'h1' if side == 'kingside' else 'a1'
 
-            # Place attacking piece (black Rook on e-file to check King)
-            attacker_sq = 'e8'
+            if color == 'white':
+                king_sq, rook_sq = 'e1', ('h1' if side == 'kingside' else 'a1')
+                attacker_sq = 'e8'  # Black Rook checks white King
+                attacker_symbol = 'r'
+                king_symbol, rook_symbol = 'K', 'R'
+            else:
+                king_sq, rook_sq = 'e8', ('h8' if side == 'kingside' else 'a8')
+                attacker_sq = 'e1'  # White Rook checks black King
+                attacker_symbol = 'R'
+                king_symbol, rook_symbol = 'k', 'r'
 
             cases.append({
                 "case_id": f"castling_rule_neg_{neg_idx + 1}",
                 "type": "castling_rule",
                 "subtype": "in_check",
                 "states": [
-                    {"pieces": {'e1': 'K', rook_sq: 'R',
-                                attacker_sq: 'r'}, "squares": []},
-                    {"pieces": {'e1': 'K', rook_sq: 'R',
-                                attacker_sq: 'r'}, "squares": []}
+                    {"pieces": {king_sq: king_symbol, rook_sq: rook_symbol,
+                                attacker_sq: attacker_symbol}, "squares": []},
+                    {"pieces": {king_sq: king_symbol, rook_sq: rook_symbol,
+                                attacker_sq: attacker_symbol}, "squares": []},
+                    {"pieces": {king_sq: king_symbol, rook_sq: rook_symbol,
+                                attacker_sq: attacker_symbol}, "squares": []}
                 ],
                 "label": "King and Rook have never moved",
-                "question": f"Can white castle {side}?",
+                "question": f"Can {color} castle {side}?",
                 "expected": "no",
                 "reasoning": "King is currently in check (cannot castle out of check)"
-            })
-            neg_idx += 1
-
-        # Type 5: Through check ⭐ ENHANCED
-        for i in range(neg_counts[4]):
-            side = random.choice(['kingside', 'queenside'])
-
-            if side == 'kingside':
-                # Black Bishop on c4 attacks f1 (King passes through f1)
-                attacker_sq = 'c4'
-                attacker_piece = 'b'
-                attacked_sq = 'f1'
-                rook_sq = 'h1'
-            else:
-                # Black Rook on d8 attacks d1 (King passes through d1)
-                attacker_sq = 'd8'
-                attacker_piece = 'r'
-                attacked_sq = 'd1'
-                rook_sq = 'a1'
-
-            cases.append({
-                "case_id": f"castling_rule_neg_{neg_idx + 1}",
-                "type": "castling_rule",
-                "subtype": "through_check",
-                "states": [
-                    {"pieces": {
-                        'e1': 'K',
-                        rook_sq: 'R',
-                        attacker_sq: attacker_piece
-                    }, "squares": []},
-                    {"pieces": {
-                        'e1': 'K',
-                        rook_sq: 'R',
-                        attacker_sq: attacker_piece
-                    }, "squares": []}
-                ],
-                "label": "King and Rook have never moved",
-                "question": f"Can white castle {side}?",
-                "expected": "no",
-                "reasoning": f"King would pass through {attacked_sq} which is under attack"
-            })
-            neg_idx += 1
-
-        # Type 6: Into check ⭐ NEW
-        for i in range(neg_counts[5]):
-            side = random.choice(['kingside', 'queenside'])
-
-            if side == 'kingside':
-                # Black Rook on g8 would attack King at g1 (final position)
-                attacker_sq = 'g8'
-                attacker_piece = 'r'
-                final_king_sq = 'g1'
-                rook_sq = 'h1'
-            else:
-                # Black Bishop on f4 would attack King at c1 (final position)
-                attacker_sq = 'f4'
-                attacker_piece = 'b'
-                final_king_sq = 'c1'
-                rook_sq = 'a1'
-
-            cases.append({
-                "case_id": f"castling_rule_neg_{neg_idx + 1}",
-                "type": "castling_rule",
-                "subtype": "into_check",
-                "states": [
-                    {"pieces": {
-                        'e1': 'K',
-                        rook_sq: 'R',
-                        attacker_sq: attacker_piece
-                    }, "squares": []},
-                    {"pieces": {
-                        'e1': 'K',
-                        rook_sq: 'R',
-                        attacker_sq: attacker_piece
-                    }, "squares": []}
-                ],
-                "label": "King and Rook have never moved",
-                "question": f"Can white castle {side}?",
-                "expected": "no",
-                "reasoning": f"After castling, King would be at {final_king_sq} which is under attack"
             })
             neg_idx += 1
 
@@ -555,109 +600,207 @@ class TemporalTest1Generator:
     def generate_castling_event_tests(self, n_cases: int = 10) -> List[Dict]:
         """
         Generate castling event recognition tests
-        2-4 states showing complete castling sequence or confusers
+        2-4 states showing complete castling sequence
         Multiple choice questions
 
         Args:
             n_cases: Total number of cases
         """
         cases = []
-        n_standard = int(n_cases * 0.7)
-        n_confuser = n_cases - n_standard
 
-        # Standard castling cases
-        for i in range(n_standard):
-            side = random.choice(['kingside', 'queenside'])
+        # ============= POSITIVE CASES =============
 
-            if side == 'kingside':
-                state_before = {"pieces": {
-                    'e1': 'K', 'h1': 'R'}, "squares": []}
-                state_after = {"pieces": {'g1': 'K', 'f1': 'R'}, "squares": []}
-                options = {
-                    "A": "Castling kingside",
-                    "B": "Castling queenside",
-                    "C": "King and Rook moved separately",
-                    "D": "Invalid position"
-                }
-                expected = "A"
-            else:
-                state_before = {"pieces": {
-                    'e1': 'K', 'a1': 'R'}, "squares": []}
-                state_after = {"pieces": {'c1': 'K', 'd1': 'R'}, "squares": []}
-                options = {
-                    "A": "Castling kingside",
-                    "B": "Castling queenside",
-                    "C": "King and Rook moved separately",
-                    "D": "None of the above"
-                }
-                expected = "B"
+        positive_templates = [
+            # White kingside
+            {
+                "color": "white",
+                "side": "kingside",
+                "state_before": {"pieces": {'e1': 'K', 'h1': 'R'}, "squares": []},
+                "state_after": {"pieces": {'g1': 'K', 'f1': 'R'}, "squares": []},
+                "expected": "A",
+                "reasoning": "White castled kingside"
+            },
+            # White queenside
+            {
+                "color": "white",
+                "side": "queenside",
+                "state_before": {"pieces": {'e1': 'K', 'a1': 'R'}, "squares": []},
+                "state_after": {"pieces": {'c1': 'K', 'd1': 'R'}, "squares": []},
+                "expected": "B",
+                "reasoning": "White castled queenside"
+            },
+            # Black kingside
+            {
+                "color": "black",
+                "side": "kingside",
+                "state_before": {"pieces": {'e8': 'k', 'h8': 'r'}, "squares": []},
+                "state_after": {"pieces": {'g8': 'k', 'f8': 'r'}, "squares": []},
+                "expected": "A",
+                "reasoning": "Black castled kingside"
+            },
+            # Black queenside
+            {
+                "color": "black",
+                "side": "queenside",
+                "state_before": {"pieces": {'e8': 'k', 'a8': 'r'}, "squares": []},
+                "state_after": {"pieces": {'c8': 'k', 'd8': 'r'}, "squares": []},
+                "expected": "B",
+                "reasoning": "Black castled queenside"
+            },
+        ]
+
+        n_pos = min(4, max(1, n_cases // 3))  # At most 4 positive cases
+        n_confuser = n_cases - n_pos
+
+        # Generate positive cases
+        for i in range(n_pos):
+            template = positive_templates[i % len(positive_templates)]
+
+            # Optionally add other pieces (for variation)
+            add_other_pieces = random.choice([True, False])
+            state_before_pieces = dict(template["state_before"]["pieces"])
+            state_after_pieces = dict(template["state_after"]["pieces"])
+
+            if add_other_pieces:
+                safe_squares = self._get_safe_squares_for_castling(
+                    template["color"], template["side"]
+                )
+                n_extra = random.randint(1, 3)
+
+                for _ in range(min(n_extra, len(safe_squares))):
+                    extra_sq = random.choice(safe_squares)
+                    safe_squares.remove(extra_sq)
+
+                    if random.choice([True, False]):
+                        extra_piece = random.choice(
+                            ['P', 'N', 'B'] if template["color"] == 'white' else [
+                                'p', 'n', 'b']
+                        )
+                    else:
+                        extra_piece = random.choice(
+                            ['p', 'n', 'b'] if template["color"] == 'white' else [
+                                'P', 'N', 'B']
+                        )
+
+                    state_before_pieces[extra_sq] = extra_piece
+                    state_after_pieces[extra_sq] = extra_piece
+
+            state_before = {"pieces": state_before_pieces, "squares": []}
+            state_after = {"pieces": state_after_pieces, "squares": []}
+
+            player = template["color"].capitalize()
 
             cases.append({
                 "case_id": f"castling_event_pos_{i+1}",
                 "type": "castling_event",
-                "subtype": side,
+                "subtype": f"{template['color']}_{template['side']}",
                 "states": [state_before, state_after],
-                "label": "White just moved",
+                "label": f"{player} just moved",
                 "question": "What happened?",
-                "options": options,
-                "expected": expected,
-                "reasoning": f"Castling {side} occurred"
+                "options": {
+                    "A": "Castling kingside",
+                    "B": "Castling queenside",
+                    "C": "King and Rook moved separately",
+                    "D": "None of the above"
+                },
+                "expected": template["expected"],
+                "reasoning": template["reasoning"]
             })
 
-        # Confuser cases: Separate moves
-        for i in range(n_confuser):
+        # ============= CONFUSER CASES (NEGATIVE) =============
+        confuser_regular = n_confuser // 2
+        confuser_no_capture = n_confuser - confuser_regular
+
+        # Confuser Type 1: Separate moves - with variations
+        for i in range(confuser_regular):
+            color = random.choice(['white', 'black'])
             side = random.choice(['kingside', 'queenside'])
 
-            if side == 'kingside':
-                cases.append({
-                    "case_id": f"castling_event_confuser_{i+1}",
-                    "type": "castling_event",
-                    "subtype": "separate_moves",
-                    "states": [
+            if color == 'white':
+                if side == 'kingside':
+                    states_sequence = [
                         {"pieces": {'e1': 'K', 'h1': 'R'}, "squares": []},
-                        {"pieces": {'f1': 'K', 'h1': 'R'},
-                            "squares": []},  # King moved
-                        {"pieces": {'g1': 'K', 'h1': 'R'},
-                            "squares": []},  # King moved again
-                        {"pieces": {'g1': 'K', 'f1': 'R'},
-                            "squares": []}   # Rook moved
-                    ],
-                    "label": "Four states shown in chronological order",
-                    "question": "Was this castling?",
-                    "options": {
-                        "A": "Yes, castling occurred",
-                        "B": "No, King and Rook moved separately",
-                        "C": "No, only King moved",
-                        "D": "Cannot determine"
-                    },
-                    "expected": "B",
-                    "reasoning": "King and Rook moved in separate turns, not castling"
-                })
-            else:
-                cases.append({
-                    "case_id": f"castling_event_confuser_{i+1}",
-                    "type": "castling_event",
-                    "subtype": "separate_moves",
-                    "states": [
+                        {"pieces": {'f1': 'K', 'h1': 'R'}, "squares": []},
+                        {"pieces": {'g1': 'K', 'h1': 'R'}, "squares": []},
+                        {"pieces": {'g1': 'K', 'f1': 'R'}, "squares": []}
+                    ]
+                else:
+                    states_sequence = [
                         {"pieces": {'e1': 'K', 'a1': 'R'}, "squares": []},
-                        {"pieces": {'d1': 'K', 'a1': 'R'},
-                            "squares": []},  # King moved
-                        {"pieces": {'c1': 'K', 'a1': 'R'},
-                            "squares": []},  # King moved again
-                        {"pieces": {'c1': 'K', 'd1': 'R'},
-                            "squares": []}   # Rook moved
-                    ],
-                    "label": "Four states shown in chronological order",
-                    "question": "Was this castling?",
-                    "options": {
-                        "A": "Yes, castling occurred",
-                        "B": "No, King and Rook moved separately",
-                        "C": "No, only King moved",
-                        "D": "Cannot determine"
-                    },
-                    "expected": "B",
-                    "reasoning": "Pieces moved separately"
-                })
+                        {"pieces": {'d1': 'K', 'a1': 'R'}, "squares": []},
+                        {"pieces": {'c1': 'K', 'a1': 'R'}, "squares": []},
+                        {"pieces": {'c1': 'K', 'd1': 'R'}, "squares": []}
+                    ]
+                player = "White"
+            else:
+                if side == 'kingside':
+                    states_sequence = [
+                        {"pieces": {'e8': 'k', 'h8': 'r'}, "squares": []},
+                        {"pieces": {'f8': 'k', 'h8': 'r'}, "squares": []},
+                        {"pieces": {'g8': 'k', 'h8': 'r'}, "squares": []},
+                        {"pieces": {'g8': 'k', 'f8': 'r'}, "squares": []}
+                    ]
+                else:
+                    states_sequence = [
+                        {"pieces": {'e8': 'k', 'a8': 'r'}, "squares": []},
+                        {"pieces": {'d8': 'k', 'a8': 'r'}, "squares": []},
+                        {"pieces": {'c8': 'k', 'a8': 'r'}, "squares": []},
+                        {"pieces": {'c8': 'k', 'd8': 'r'}, "squares": []}
+                    ]
+                player = "Black"
+
+            cases.append({
+                "case_id": f"castling_event_confuser_{i+1}",
+                "type": "castling_event",
+                "subtype": f"{color}_separate_moves",
+                "states": states_sequence,
+                "label": "Four states shown in chronological order",
+                "question": "Was this castling?",
+                "options": {
+                    "A": "Yes, castling occurred",
+                    "B": "No, King and Rook moved separately",
+                    "C": "No, only King moved",
+                    "D": "Cannot determine"
+                },
+                "expected": "B",
+                "reasoning": f"{player} King and Rook moved in separate turns, not castling"
+            })
+
+        # Confuser Type 2: Keep original logic for "no capture" cases
+        for i in range(confuser_no_capture):
+            white_file = random.choice(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+            white_sq = white_file + '5'
+            white_advanced = white_file + '6'
+
+            adjacent = self._adjacent_files(white_file)
+            if adjacent:
+                black_file = random.choice(adjacent)
+            else:
+                black_file = 'b'
+
+            black_start = black_file + '7'
+            black_mid = black_file + '5'
+
+            cases.append({
+                "case_id": f"castling_event_confuser_{confuser_regular + i + 1}",
+                "type": "castling_event",
+                "subtype": "no_capture",
+                "states": [
+                    {"pieces": {white_sq: 'P', black_start: 'p'}, "squares": []},
+                    {"pieces": {white_sq: 'P', black_mid: 'p'}, "squares": []},
+                    {"pieces": {white_advanced: 'P', black_mid: 'p'}, "squares": []}
+                ],
+                "label": "States shown in chronological order",
+                "question": "What happened in this sequence?",
+                "options": {
+                    "A": "En passant capture",
+                    "B": "Regular capture",
+                    "C": "White pawn advanced, no capture",
+                    "D": "Castling"
+                },
+                "expected": "C",
+                "reasoning": "White pawn just advanced, no capture occurred"
+            })
 
         return cases
 
