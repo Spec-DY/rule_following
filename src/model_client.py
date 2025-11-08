@@ -213,6 +213,16 @@ class DashScopeModelClient(OpenAICompatibleModelClient):
     SERVICE_NAME = "DashScope"
 
 
+class XAIModelClient(OpenAICompatibleModelClient):
+    """XAI model client"""
+
+    DEFAULT_BASE_URL = "https://api.x.ai/v1"
+    ENV_API_KEY = "XAI_API_KEY"
+    ENV_BASE_URL = "XAI_BASE_URL"
+    ENV_MODEL = "XAI_MODEL"
+    SERVICE_NAME = "XAI"
+
+
 class DummyModelClient(ModelClient):
     """Dummy model client for testing the framework"""
 

@@ -4,7 +4,7 @@ Each case tests pure temporal reasoning without chess rules
 """
 
 from src.temporal.test_0_pure_ability import TemporalTest0
-from src.model_client import DummyModelClient, DashScopeModelClient, NovitaModelClient
+from src.model_client import DummyModelClient, DashScopeModelClient, NovitaModelClient, XAIModelClient
 import sys
 import os
 
@@ -29,9 +29,9 @@ def main():
 
     N_CASES_PER_TYPE = 26      # Number of cases per test type
     SEED = 57                  # Random seed for reproducibility
-    MODEL_TYPE = "dashscope"       # Options: "dummy", "dashscope", "novita"
-    RATE_LIMIT_REQUESTS = 60   # Number of requests before pausing
-    RATE_LIMIT_PAUSE = 10      # Pause duration in seconds
+    MODEL_TYPE = "xai"       # Options: "dummy", "dashscope", "novita", "xai"
+    RATE_LIMIT_REQUESTS = 0   # Number of requests before pausing
+    RATE_LIMIT_PAUSE = 0      # Pause duration in seconds
 
     # ===== Setup Test =====
 
@@ -96,6 +96,13 @@ def main():
             raise ValueError("NOVITA_API_KEY not found")
         model_client = NovitaModelClient(api_key=api_key, stream=False)
         print(f"✓ Using Novita: {model_client.model_name}\n")
+
+    elif MODEL_TYPE == "xai":
+        api_key = os.getenv("XAI_API_KEY")
+        if not api_key:
+            raise ValueError("XAI_API_KEY not found")
+        model_client = XAIModelClient(api_key=api_key, stream=False)
+        print(f"✓ Using XAI: {model_client.model_name}\n")
 
     else:
         raise ValueError(f"Unknown model type: {MODEL_TYPE}")

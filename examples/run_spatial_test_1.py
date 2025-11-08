@@ -4,7 +4,7 @@ Each case is verified for board recognition before testing
 """
 
 from src.spatial.test_1_rule_following import SpatialTest1
-from src.model_client import DummyModelClient, DashScopeModelClient, NovitaModelClient
+from src.model_client import DummyModelClient, DashScopeModelClient, NovitaModelClient, XAIModelClient
 import os
 import sys
 
@@ -31,10 +31,10 @@ def main():
     # Number of cases per piece type (total = 6 * N_CASES_PER_TYPE)
     N_CASES_PER_TYPE = 13
     SEED = 57                  # Random seed for reproducibility
-    MODEL_TYPE = "dashscope"      # Options: "dummy", "dashscope", "novita"
+    MODEL_TYPE = "xai"      # Options: "dummy", "dashscope", "novita", "xai"
     DUMMY_VERIFICATION_PASS_RATE = 0.8  # For dummy model
-    RATE_LIMIT_REQUESTS = 60   # Number of requests before pausing
-    RATE_LIMIT_PAUSE = 10      # Pause duration in seconds
+    RATE_LIMIT_REQUESTS = 0   # Number of requests before pausing
+    RATE_LIMIT_PAUSE = 0      # Pause duration in seconds
 
     # ===== Setup Test =====
 
@@ -101,6 +101,13 @@ def main():
             raise ValueError("NOVITA_API_KEY not found")
         model_client = NovitaModelClient(api_key=api_key, stream=False)
         print(f"✓ Using Novita: {model_client.model_name}\n")
+
+    elif MODEL_TYPE == "xai":
+        api_key = os.getenv("XAI_API_KEY")
+        if not api_key:
+            raise ValueError("XAI_API_KEY not found")
+        model_client = XAIModelClient(api_key=api_key, stream=False)
+        print(f"✓ Using XAI: {model_client.model_name}\n")
     else:
         raise ValueError(f"Unknown model type: {MODEL_TYPE}")
 

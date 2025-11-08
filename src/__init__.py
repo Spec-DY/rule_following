@@ -8,7 +8,8 @@ from .model_client import (
     ModelClient,
     DummyModelClient,
     NovitaModelClient,
-    DashScopeModelClient
+    DashScopeModelClient,
+    XAIModelClient,
 )
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "ModelClient",
     "DummyModelClient",
     "NovitaModelClient",
-    "DashScopeModelClient"
+    "DashScopeModelClient",
+    "XAIModelClient",
 ]
