@@ -236,43 +236,60 @@ class Level4Generator:
 
     def _generate_scenario_b_causes_check(self, n_cases: int) -> List[Dict]:
         """
-        Scenario B: En passant would expose King to check
-
-        Simple setup: King and Rook on same file, white pawn blocks in between
+        Scenario B: En passant would expose King to check (Absolute Pin)
+        Fixed logic: ONLY Horizontal and Vertical pins to avoid geometric loopholes.
         """
         cases = []
 
-        # Use predefined safe configurations
-        configs = [
-            # King at d1, white pawn d5, black rook d4 (rank 1-4!)
-            {'king': 'd1', 'white': 'd5', 'attacker': 'd2',
-                'black_start': 'e7', 'black_end': 'e5'},
-            {'king': 'd1', 'white': 'd5', 'attacker': 'd3',
-                'black_start': 'e7', 'black_end': 'e5'},
-            {'king': 'e1', 'white': 'e5', 'attacker': 'e2',
-                'black_start': 'd7', 'black_end': 'd5'},
-            {'king': 'e1', 'white': 'e5', 'attacker': 'e3',
-                'black_start': 'f7', 'black_end': 'f5'},
-            {'king': 'f1', 'white': 'f5', 'attacker': 'f2',
-                'black_start': 'e7', 'black_end': 'e5'},
-            {'king': 'f1', 'white': 'f5', 'attacker': 'f3',
-                'black_start': 'g7', 'black_end': 'g5'},
+        # Configurations where White Pawn is pinned
+        # STRICTLY Vertical or Horizontal
+
+        pin_configs = [
+            # --- Vertical Pins (File Open) ---
+            # King e1, White P e5, Black R/Q e8.
+            # Black P moves d7->d5. White P (e5) captures d5 (lands on d6).
+            # e-file opens (e5 is now empty). King e1 exposed to e8. -> Illegal.
+            {'king': 'e1', 'white': 'e5', 'attacker': 'e8', 'attacker_type': 'r',
+             'black_start': 'd7', 'black_end': 'd5'},
+            {'king': 'e1', 'white': 'e5', 'attacker': 'e8', 'attacker_type': 'q',
+             'black_start': 'f7', 'black_end': 'f5'},
+
+            # King d1, White P d5, Black R/Q d8.
+            # Black P moves c7->c5. White P (d5) captures c5 (lands c6).
+            # d-file opens (d5 is empty). King d1 exposed to d8. -> Illegal.
+            {'king': 'd1', 'white': 'd5', 'attacker': 'd8', 'attacker_type': 'r',
+             'black_start': 'c7', 'black_end': 'c5'},
+            {'king': 'd1', 'white': 'd5', 'attacker': 'd8', 'attacker_type': 'q',
+             'black_start': 'e7', 'black_end': 'e5'},
+
+            # --- Horizontal Pins (Rank Open) ---
+            # King a5, White P d5, Black R/Q h5.
+            # Black P moves e7->e5. White P (d5) captures e5 (lands e6).
+            # Rank 5 opens (d5 is empty). King a5 exposed to h5. -> Illegal.
+            {'king': 'a5', 'white': 'd5', 'attacker': 'h5', 'attacker_type': 'r',
+             'black_start': 'e7', 'black_end': 'e5'},
+
+            # King h5, White P f5, Black R/Q a5.
+            # Black P moves e7->e5. White P (f5) captures e5 (lands e6).
+            # Rank 5 opens (f5 is empty). King h5 exposed to a5. -> Illegal.
+            {'king': 'h5', 'white': 'f5', 'attacker': 'a5', 'attacker_type': 'q',
+             'black_start': 'e7', 'black_end': 'e5'},
         ]
 
         for i in range(n_cases):
-            config = random.choice(configs)
+            config = random.choice(pin_configs)
 
             cases.append({
                 "case_id": f"L4_scenario_b_{i+1}",
                 "type": "en_passant_constraint",
-                "subtype": "causes_check",
+                "subtype": "causes_check_pin",
                 "states": [
                     {
                         "pieces": {
                             config['white']: 'P',
                             config['black_start']: 'p',
                             config['king']: 'K',
-                            config['attacker']: 'r'
+                            config['attacker']: config['attacker_type']
                         },
                         "squares": []
                     },
@@ -281,101 +298,57 @@ class Level4Generator:
                             config['white']: 'P',
                             config['black_end']: 'p',
                             config['king']: 'K',
-                            config['attacker']: 'r'
+                            config['attacker']: config['attacker_type']
                         },
                         "squares": []
                     }
                 ],
                 "question": "Can white capture the black pawn en passant?",
                 "expected": "no",
-                "reasoning": f"White pawn blocks check, capturing would expose King to check"
+                "reasoning": f"White pawn is pinned by {config['attacker_type']} at {config['attacker']}, capturing would expose King to check"
             })
 
         return cases
 
     def _generate_scenario_c_in_check(self, n_cases: int) -> List[Dict]:
         """
-        Scenario C: King is currently in check
-
-        ULTRA SIMPLE STRATEGY: Use predefined valid configurations
-        All attackers guaranteed to be in rank 1-4
-        All 4 pieces guaranteed to exist
-        No blocking issues
+        Scenario C: King is ALREADY in check.
+        White must resolve the check. En Passant does not resolve it.
         """
         cases = []
 
-        # Predefined configurations that are guaranteed to work
-        # Format: king, attacker (rank 1-4 only!), white_pawn, black_pawn_start, black_pawn_end
+        # Configurations where White King is ALREADY in check
+        # and the En Passant move happens elsewhere and doesn't block the check.
+
         configs = [
-            # Horizontal attacks (same rank)
-            {'king': 'a1', 'attacker': 'h1', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
-            {'king': 'a2', 'attacker': 'h2', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
-            {'king': 'h1', 'attacker': 'a1', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
-            {'king': 'h2', 'attacker': 'a2', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
+            # 1. Distant Rank Check (Attacker on h1, King a1)
+            # En passant happening in the middle (d/e file) irrelevant to Rank 1.
+            {'king': 'a1', 'attacker': 'h1', 'attacker_type': 'r',
+             'white': 'd5', 'black_start': 'e7', 'black_end': 'e5'},
 
-            # Vertical attacks (same file, attacker in rank 1-4)
-            {'king': 'a1', 'attacker': 'a4', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
-            {'king': 'a2', 'attacker': 'a4', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
-            {'king': 'b1', 'attacker': 'b4', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
-            {'king': 'h1', 'attacker': 'h4', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'r'},
+            # 2. Close File Check (Attacker e2, King e1)
+            # En passant on a/b files (far left), cannot block e-file check.
+            {'king': 'e1', 'attacker': 'e2', 'attacker_type': 'q',
+             'white': 'a5', 'black_start': 'b7', 'black_end': 'b5'},
 
-            # Diagonal attacks from rank 1-4
-            {'king': 'a1', 'attacker': 'c3', 'white': 'f5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'b'},
-            {'king': 'a1', 'attacker': 'd4', 'white': 'f5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'q'},
-            {'king': 'a2', 'attacker': 'c4', 'white': 'f5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'b'},
-            {'king': 'b1', 'attacker': 'd3', 'white': 'f5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'b'},
-            {'king': 'h1', 'attacker': 'f3', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'b'},
-            {'king': 'h2', 'attacker': 'f4', 'white': 'd5',
-                'black_start': 'e7', 'black_end': 'e5', 'attacker_type': 'q'},
+            # 3. Distant Diagonal Check (Attacker h4, King e1)
+            # En passant on b5/c5 (far left), cannot block e1-h4 diagonal.
+            {'king': 'e1', 'attacker': 'h4', 'attacker_type': 'b',
+             'white': 'b5', 'black_start': 'c7', 'black_end': 'c5'},
+
+            # 4. Knight Check (Cannot be blocked)
+            # Knight c2 checks King e1. En Passant happens at g5/h5.
+            {'king': 'e1', 'attacker': 'c2', 'attacker_type': 'n',
+             'white': 'g5', 'black_start': 'h7', 'black_end': 'h5'},
         ]
 
         for i in range(n_cases):
             config = random.choice(configs)
 
-            # Double-check attacker is in rank 1-4
-            attacker_rank = int(config['attacker'][1])
-            if attacker_rank < 1 or attacker_rank > 4:
-                print(
-                    f"ERROR: Config has attacker at {config['attacker']} not in rank 1-4!")
-                continue
-
-            # Verify all 4 positions are unique
-            positions = [config['king'], config['attacker'],
-                         config['white'], config['black_start']]
-            if len(set(positions)) != 4:
-                continue
-
-            # Verify black pawn path is clear
-            black_file = config['black_start'][0]
-            black_path = black_file + '6'
-            if black_path in positions:
-                continue
-
-            # Verify no blocking
-            if self._is_square_blocking_check(config['king'], config['attacker'], config['white']):
-                continue
-            if self._is_square_blocking_check(config['king'], config['attacker'], config['black_start']):
-                continue
-            if self._is_square_blocking_check(config['king'], config['attacker'], config['black_end']):
-                continue
-
             cases.append({
                 "case_id": f"L4_scenario_c_{i+1}",
                 "type": "en_passant_constraint",
-                "subtype": "in_check",
+                "subtype": "already_in_check",
                 "states": [
                     {
                         "pieces": {
@@ -398,7 +371,7 @@ class Level4Generator:
                 ],
                 "question": "Can white capture the black pawn en passant?",
                 "expected": "no",
-                "reasoning": f"King at {config['king']} is in check from {config['attacker']}, must resolve check first"
+                "reasoning": f"King at {config['king']} is currently in check from {config['attacker']}, en passant does not resolve the check"
             })
 
         return cases
@@ -427,11 +400,12 @@ class Level4Generator:
 
         scenario_b = self._generate_scenario_b_causes_check(n_scenario_b)
         all_cases.extend(scenario_b)
-        print(f"  ✓ Generated {len(scenario_b)} scenario B (causes check)")
+        print(
+            f"  ✓ Generated {len(scenario_b)} scenario B (causes check - pin)")
 
         scenario_c = self._generate_scenario_c_in_check(n_scenario_c)
         all_cases.extend(scenario_c)
-        print(f"  ✓ Generated {len(scenario_c)} scenario C (in check)")
+        print(f"  ✓ Generated {len(scenario_c)} scenario C (already in check)")
 
         print(f"\n✓ Total generated: {len(all_cases)} Level 4 test cases")
         print(

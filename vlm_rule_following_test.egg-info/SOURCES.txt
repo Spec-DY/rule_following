@@ -7,7 +7,6 @@ src/model_client.py
 src/condition/__init__.py
 src/condition/condition_test_1.py
 src/condition/condition_test_1_generator.py
-src/condition/condition_test_2_generator.py
 src/condition/condition_test_base.py
 src/condition/verification_generator.py
 src/spatial/__init__.py
@@ -24,6 +23,17 @@ src/temporal/test_0_pure_ability.py
 src/temporal/test_1_generator.py
 src/temporal/test_1_rule_following.py
 src/temporal/verification_generator.py
+src/temporal_levels/__init__.py
+src/temporal_levels/level_1_basic_movement.py
+src/temporal_levels/level_1_generator.py
+src/temporal_levels/level_2_generator.py
+src/temporal_levels/level_2_path_capture.py
+src/temporal_levels/level_3_en_passant_basic.py
+src/temporal_levels/level_3_generator.py
+src/temporal_levels/level_4_en_passant_constraint.py
+src/temporal_levels/level_4_generator.py
+src/temporal_levels/temporal_level_base.py
+src/temporal_levels/verification_generator.py
 vlm_rule_following_test.egg-info/PKG-INFO
 vlm_rule_following_test.egg-info/SOURCES.txt
 vlm_rule_following_test.egg-info/dependency_links.txt

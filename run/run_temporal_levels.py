@@ -7,6 +7,9 @@ from src.model_client import DummyModelClient, NovitaModelClient, DashScopeModel
 from src.temporal_levels import TemporalLevel1, TemporalLevel2, TemporalLevel3, TemporalLevel4
 import sys
 import argparse
+import os
+import json
+from datetime import datetime
 from typing import List, Dict, Any
 sys.path.append('.')
 
@@ -37,38 +40,12 @@ LEVEL_CONFIG = {
         "default_cases": 100,
         "description": "Tests en passant timing and check constraints"
     },
-    # 5: {
-    #     "name": "En Passant Constraints",
-    #     "class": TemporalLevel4,
-    #     "default_cases": 100,
-    #     "description": "Tests en passant timing and check constraints"
-    # },
-    # 5: {
-    #     "name": "Castling + 2 Check Rules",
-    #     "class": TemporalLevel5,
-    #     "default_cases": 100,
-    #     "description": "Tests castling with 2 check rules"
-    # },
-    # 6: {
-    #     "name": "Castling + 3 Check Rules",
-    #     "class": TemporalLevel6,
-    #     "default_cases": 100,
-    #     "description": "Tests all castling violation combinations"
-    # },
 }
 
 
 def get_model_client(model_type: str, use_dummy: bool = False, dummy_pass_rate: float = 0.8):
     """
     Get model client based on type
-
-    Args:
-        model_type: Type of model client ('dummy', 'novita', 'dashscope', 'xai')
-        use_dummy: If True, use dummy model regardless of model_type
-        dummy_pass_rate: Pass rate for dummy model
-
-    Returns:
-        Model client instance
     """
     if use_dummy or model_type == 'dummy':
         print(f"\n🤖 Using Dummy Model Client (pass_rate={dummy_pass_rate})")
@@ -96,18 +73,6 @@ def run_single_level(level: int,
                      rate_limit_pause: int = 0) -> Dict[str, Any]:
     """
     Run a single level test
-
-    Args:
-        level: Level number (1-6)
-        n_cases: Number of test cases (None = use default)
-        seed: Random seed
-        model_client: Model client instance
-        output_base: Base output directory
-        rate_limit_requests: Number of requests before pausing
-        rate_limit_pause: Pause duration in seconds
-
-    Returns:
-        Dictionary with test results and statistics
     """
     if level not in LEVEL_CONFIG:
         raise ValueError(f"Level {level} not implemented yet")
@@ -148,10 +113,77 @@ def run_single_level(level: int,
     return {
         "level": level,
         "name": config["name"],
-        "results": results,
         "stats": stats,
-        "output_dir": test.output_dir
+        "output_dir": test.output_dir,
+        "model_name": model_client.model_name
     }
+
+
+def save_suite_summary(all_results: List[Dict[str, Any]], output_base: str):
+    """
+    Save a summary of all levels to a JSON file
+    """
+    os.makedirs(output_base, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    summary_data = {
+        "timestamp": datetime.now().isoformat(),
+        "model_name": all_results[0]["model_name"] if all_results else "unknown",
+        "levels_run": len(all_results),
+        "results": []
+    }
+
+    print("\n" + "=" * 70)
+    print("SUMMARY OF ALL LEVELS")
+    print("=" * 70)
+
+    for res in all_results:
+        level = res["level"]
+        name = res["name"]
+        stats = res["stats"]
+
+        # Calculate accuracy metrics
+        verification_rate = stats['verification_passed'] / \
+            stats['total'] if stats['total'] > 0 else 0
+        accuracy_verified = stats['test_correct_given_verified'] / \
+            stats['verification_passed'] if stats['verification_passed'] > 0 else 0
+        overall_accuracy = stats['test_correct'] / \
+            stats['total'] if stats['total'] > 0 else 0
+
+        # Add to summary data
+        level_summary = {
+            "level": level,
+            "name": name,
+            "total_cases": stats['total'],
+            "verification_rate": round(verification_rate, 3),
+            "accuracy_given_verified": round(accuracy_verified, 3),
+            "overall_accuracy": round(overall_accuracy, 3),
+            "output_dir": res["output_dir"],
+            "details": stats  # Include full raw stats
+        }
+        summary_data["results"].append(level_summary)
+
+        # Print to console
+        print(f"\nLevel {level}: {name}")
+        print(f"  Total cases: {stats['total']}")
+        print(f"  Verification rate: {verification_rate:.1%}")
+        print(f"  Accuracy (verified cases): {accuracy_verified:.1%}")
+        print(f"  Overall accuracy: {overall_accuracy:.1%}")
+        print(f"  Output: {res['output_dir']}")
+
+    # Save to file
+    filename = f"temporal_levels_summary_{timestamp}.json"
+    filepath = os.path.join(output_base, filename)
+
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(summary_data, f, indent=2, ensure_ascii=False)
+        print("\n" + "=" * 70)
+        print(f"✅ All tests completed!")
+        print(f"📄 Suite summary saved to: {filepath}")
+        print("=" * 70)
+    except Exception as e:
+        print(f"\n⚠️ Failed to save summary file: {e}")
 
 
 def run_multiple_levels(levels: List[int],
@@ -165,20 +197,6 @@ def run_multiple_levels(levels: List[int],
                         rate_limit_pause: int = 0) -> List[Dict[str, Any]]:
     """
     Run multiple level tests
-
-    Args:
-        levels: List of level numbers to run
-        n_cases: Number of test cases per level (None = use defaults)
-        seed: Random seed
-        model_type: Type of model client
-        use_dummy: Force use of dummy model
-        dummy_pass_rate: Pass rate for dummy model
-        output_base: Base output directory
-        rate_limit_requests: Number of requests before pausing
-        rate_limit_pause: Pause duration in seconds
-
-    Returns:
-        List of result dictionaries
     """
     # Validate levels
     for level in levels:
@@ -225,51 +243,10 @@ def run_multiple_levels(levels: List[int],
             traceback.print_exc()
             continue
 
-    # Print summary
-    print_summary(all_results)
+    # Save summary to file and print
+    save_suite_summary(all_results, output_base)
 
     return all_results
-
-
-def print_summary(all_results: List[Dict[str, Any]]):
-    """Print summary of all test results"""
-    print("\n" + "=" * 70)
-    print("SUMMARY OF ALL LEVELS")
-    print("=" * 70)
-
-    for result in all_results:
-        level = result["level"]
-        name = result["name"]
-        stats = result["stats"]
-
-        # Check if this is the new stats format (with verification)
-        if 'verification_passed' in stats:
-            verification_rate = stats['verification_passed'] / \
-                stats['total'] if stats['total'] > 0 else 0
-            accuracy_given_verified = stats['test_correct_given_verified'] / \
-                stats['verification_passed'] if stats['verification_passed'] > 0 else 0
-            overall_accuracy = stats['test_correct'] / \
-                stats['total'] if stats['total'] > 0 else 0
-
-            print(f"\nLevel {level}: {name}")
-            print(f"  Total cases: {stats['total']}")
-            print(f"  Verification rate: {verification_rate:.1%}")
-            print(
-                f"  Accuracy (verified cases): {accuracy_given_verified:.1%}")
-            print(f"  Overall accuracy: {overall_accuracy:.1%}")
-        else:
-            # Old stats format (no verification)
-            accuracy = stats['correct'] / \
-                stats['total'] if stats['total'] > 0 else 0
-            print(f"\nLevel {level}: {name}")
-            print(f"  Total cases: {stats['total']}")
-            print(f"  Correct: {stats['correct']} ({accuracy:.1%})")
-
-        print(f"  Output: {result['output_dir']}")
-
-    print("\n" + "=" * 70)
-    print("✅ All tests completed!")
-    print("=" * 70)
 
 
 def main():
