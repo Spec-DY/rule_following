@@ -1,5 +1,7 @@
 """
 Model client interfaces for querying VLMs
+Includes base class and OpenAI-compatible clients
+send images as base64-encoded data URLs
 """
 
 from abc import ABC, abstractmethod

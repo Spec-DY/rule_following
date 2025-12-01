@@ -1,6 +1,7 @@
 chess
 Pillow
-cairosvg
 numpy
 matplotlib
-anthropic
+python-dotenv
+requests
+openai

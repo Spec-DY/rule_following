@@ -6,10 +6,11 @@ Author: Dylan
 Requires-Python: >=3.8
 Requires-Dist: chess
 Requires-Dist: Pillow
-Requires-Dist: cairosvg
 Requires-Dist: numpy
 Requires-Dist: matplotlib
-Requires-Dist: anthropic
+Requires-Dist: python-dotenv
+Requires-Dist: requests
+Requires-Dist: openai
 Dynamic: author
 Dynamic: requires-dist
 Dynamic: requires-python
