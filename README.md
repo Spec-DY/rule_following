@@ -84,20 +84,14 @@ XAI_MODEL=grok-4-fast-reasoning
 XAI_BASE_URL=https://api.x.ai/v1
 ```
 
-### Running Tests
+### Example of Running Tests
 
 ```bash
 # Run Spatial Test 0 (Pure Spatial Reasoning)
-python examples/run_spatial_test_0.py
-
-# Run Spatial Test 1 (Rule Following)
-python examples/run_spatial_test_1.py
-
-# Run Temporal Test 0 (Pure Temporal Reasoning)
-python examples/run_temporal_test_0.py
+python run/run_spatial_test_0.py
 
 # Run Temporal Test 1 (Temporal Rule Following)
-python examples/run_temporal_test_1.py
+python run/run_temporal_test_1.py
 ```
 
 ### Customizing Test Parameters
@@ -113,81 +107,6 @@ RATE_LIMIT_REQUESTS = 0    # Number of requests before pausing
 RATE_LIMIT_PAUSE = 0       # Pause duration in seconds
 ```
 
-## 📂 Project Structure
-
-```
-rulefollow_test/
-├── assets/
-│   └── pieces/          # Chess piece PNG images (wk.png, bq.png, etc.)
-├── src/
-│   ├── spatial/         # Spatial reasoning tests
-│   │   ├── test_0_pure_ability.py
-│   │   ├── test_0_generator.py
-│   │   ├── test_1_rule_following.py
-│   │   ├── test_1_generator.py
-│   │   ├── spatial_test_base.py
-│   │   └── verification_generator.py
-│   ├── temporal/        # Temporal reasoning tests
-│   │   ├── test_0_pure_ability.py
-│   │   ├── test_0_generator.py
-│   │   ├── test_1_rule_following.py
-│   │   └── test_1_generator.py
-│   ├── board_generator.py      # Chess board image generation
-│   ├── model_client.py          # Model API clients
-│   └── data_structures.py       # Data models and utilities
-├── examples/            # Example run scripts
-│   ├── run_spatial_test_0.py
-│   ├── run_spatial_test_1.py
-│   ├── run_temporal_test_0.py
-│   └── run_temporal_test_1.py
-├── output/             # Test results (auto-generated)
-└── requirements.txt
-```
-
-## 🧪 Test Output
-
-Each test run generates:
-
-### Generated Files
-
-- **PNG Images**: Visual test cases with highlighted squares and pieces
-- **JSON Results**: Detailed results with verification and accuracy metrics
-
-### Output Structure
-
-```
-output/
-└── spatial_test_0_MMDD_HHMMSS/
-    ├── *.png                    # Test case images
-    └── test_0_results.json      # Results with summary
-```
-
-### Results JSON Format
-
-```json
-{
-  "summary": {
-    "model_name": "grok-4-fast-reasoning",
-    "total_cases": 90,
-    "board_recognition": {
-      "verified_correctly": 85,
-      "failed_to_recognize": 5,
-      "verification_rate": 0.944
-    },
-    "test_accuracy": {
-      "correct_among_verified": 78,
-      "total_verified": 85,
-      "accuracy_given_verified": 0.918,
-      "overall_accuracy": 0.867
-    },
-    "accuracy_by_type_verified_only": {
-      "diagonal": {"correct": 15, "total": 18, "accuracy": 0.833},
-      "same_line_same_file": {"correct": 9, "total": 10, "accuracy": 0.900}
-    }
-  },
-  "detailed_results": [...]
-}
-```
 
 ## 💡 How It Works
 
@@ -294,34 +213,6 @@ for model_type in models:
     # Results auto-saved to separate directories
 ```
 
-## 🔬 Test Types Explained
-
-### Spatial Test 0 Categories
-
-- **Same Line**: File (vertical) and Rank (horizontal) alignment
-- **Diagonal**: Diagonal relationship detection
-- **Relative Position**: 8 directional relationships (N, NE, E, SE, S, SW, W, NW)
-- **Path Clear**: Obstacle detection between squares
-
-### Spatial Test 1 Categories
-
-Each piece type has 3 subtests:
-
-- **Clear Path**: Valid moves without obstacles
-- **Blocked Path**: Invalid moves due to blocking pieces
-- **Invalid Move**: Moves that violate piece movement rules
-
-Plus special castling tests:
-
-- **Castling Through Check**: Cannot castle through attacked squares
-- **Castling In Check**: Cannot castle while in check
-
-### Temporal Test Categories
-
-- **Movement Tracking**: Identify which piece moved
-- **State Comparison**: Compare board states across frames
-- **Sequence Understanding**: Understand move sequences
-- **Rule Application**: Apply time-dependent rules (en passant timing)
 
 # Condition Ladder
 
@@ -341,7 +232,7 @@ python run/run_temporal_levels.py -l 1 4 --model xai
 
 _(Note: Use `-l` followed by the level numbers separated by spaces)_
 
-### 2\. Run All Levels (Recommended)
+### 2\. Run All Levels
 
 To run all available tests from Level 1 to Level 4 in one go:
 
@@ -366,17 +257,3 @@ python run/run_temporal_levels.py --all --model xai
 | **`--rate-pause`**      |       | `int`        | `0`          | Duration in seconds to pause when the rate limit is reached.                                             |
 
 ---
-
-## 📂 Where are the results?
-
-After the script finishes, check the `output/` directory:
-
-1.  **Summary Report (Best for overview)**:
-
-    - File name: `output/temporal_levels_summary_YYYYMMDD_...json`
-    - Contains accuracy statistics and comparisons for all run levels.
-
-2.  **Detailed Results**:
-
-    - Each level creates its own folder, e.g., `output/temporal_level_1_.../`
-    - Contains individual case images and detailed JSON logs.
