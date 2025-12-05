@@ -1,0 +1,15 @@
+# Core dependencies for perception test suite
+
+# Image processing
+numpy>=1.20.0
+Pillow>=9.0.0
+
+# API client
+openai>=1.0.0
+
+# Chess game simulation (for Chess density test)
+python-chess>=1.999
+
+# Plotting and visualization
+matplotlib>=3.5.0
+scipy>=1.7.0
