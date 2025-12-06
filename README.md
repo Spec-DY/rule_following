@@ -43,7 +43,7 @@ Evaluates spatial and temporal reasoning with chess rules:
 ### Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Spec-DY/why-vlms-fail.git
 cd vlm_benchmark
 
 # Install rule_following module
