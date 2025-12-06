@@ -9,6 +9,7 @@ This project systematically tests VLMs through generated chess board images to e
 - **Spatial Reasoning**: Board position recognition, relative directions, diagonal relationships, etc.
 - **Rule Understanding**: Chess rules application (piece movements, en passant, castling, etc.)
 - **Temporal Reasoning**: Tracking piece movement sequences and understanding state changes
+- **Condition Ladder**: Testing model accuracy with slowly increasing constraints
 
 Each test includes a **verification mechanism** to ensure the model can correctly recognize the board before testing its reasoning abilities.
 
@@ -20,13 +21,11 @@ Each test includes a **verification mechanism** to ensure the model can correctl
 
 - Tests fundamental spatial understanding (no chess knowledge required)
 - Includes: same file/rank detection, diagonal recognition, relative directions, path clearance
-- ~90 test cases
-
+  
 **2. Spatial Test 1 - Rule Following Baseline**
 
 - Tests movement rules for all 6 piece types (King, Queen, Rook, Bishop, Knight, Pawn)
 - Includes: legal moves, blocked paths, castling rules (through check & in check)
-- 100+ test cases
 
 **3. Temporal Test 0 - Pure Temporal Reasoning**
 
@@ -40,13 +39,16 @@ Each test includes a **verification mechanism** to ensure the model can correctl
 - Includes: En Passant, Castling with temporal constraints
 - Event recognition and rule application
 
+**5. Condition Ladder**
+- Tests model accuracy with increasing conditions that must be checked
+
 ### 🔌 Multi-Model Support
 
 Supports any OpenAI-compatible API:
 
-- **DashScope** (Alibaba)
+- **DashScope**
 - **Novita AI**
-- **XAI** (Grok)
+- **XAI**
 - **Custom endpoints** (easily extensible)
 - **Dummy Model** (for testing the framework)
 
@@ -56,7 +58,7 @@ Supports any OpenAI-compatible API:
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/Spec-DY/why-vlms-fail.git
 cd rulefollow_test
 
 # Install in development mode
@@ -68,9 +70,9 @@ pip install -e .
 Create a `.env` file in the project root:
 
 ```env
-# For DashScope (Alibaba Qwen models)
+# For DashScope
 DASHSCOPE_API_KEY=your_api_key_here
-DASHSCOPE_MODEL=qwen-vl-max
+DASHSCOPE_MODEL=qwen3-vl-8b-thinking
 DASHSCOPE_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 
 # For Novita AI
@@ -94,7 +96,7 @@ python run/run_spatial_test_0.py
 python run/run_temporal_test_1.py
 ```
 
-### Customizing Test Parameters
+### Customizing Test Parameters in Temporal/Spatial Test 0 & 1
 
 Edit the configuration section in each run file:
 
@@ -106,49 +108,6 @@ MODEL_TYPE = "xai"         # Options: "dummy", "dashscope", "novita", "xai"
 RATE_LIMIT_REQUESTS = 0    # Number of requests before pausing
 RATE_LIMIT_PAUSE = 0       # Pause duration in seconds
 ```
-
-## 💡 How It Works
-
-### 1. Test Case Generation
-
-Each test automatically generates diverse cases:
-
-```python
-# Spatial Test 0 Generator
-generator = SpatialTest0Generator(seed=42)
-cases = generator.generate_all(n_per_type=10)
-# Generates: same file, same rank, diagonal, direction, path clear tests
-```
-
-### 2. Board Image Creation
-
-Uses custom chess piece images to generate visual test cases:
-
-```python
-board_gen = ChessBoardGenerator()
-img = board_gen.create_board_with_pieces(
-    pieces={"e4": "N", "f6": "n"},  # Uppercase=white, lowercase=black
-    highlighted_squares=["e4", "f6"]
-)
-```
-
-### 3. Combined Verification + Testing
-
-Each query includes both verification and test questions:
-
-```
-Verification: What square is the piece on?
-Main Question: Can this knight move to the highlighted square?
-```
-
-### 4. Result Analysis
-
-The framework tracks:
-
-- **Verification Rate**: How many boards were correctly recognized
-- **Test Accuracy (Verified)**: Accuracy among correctly recognized boards
-- **Overall Accuracy**: Total accuracy including verification failures
-- **Type Breakdown**: Performance by test type and subtype
 
 ## 🔧 Adding New Models
 
@@ -172,25 +131,6 @@ YOUR_MODEL=your_model_name
 
 ## 🛠️ Advanced Usage
 
-### Custom Test Cases
-
-```python
-# Create custom test
-test = SpatialTest0(
-    base_output_dir="./custom_output",
-    n_cases_per_type=20,  # More cases per type
-    seed=123,             # Different random seed
-    auto_timestamp=True,
-    rate_limit_requests=50,  # Pause every 50 requests
-    rate_limit_pause=60      # 60 second pause
-)
-
-# Generate and run
-test.generate_test_cases()
-test.create_test_images()
-results, stats = test.run_test(model_client)
-```
-
 ### Rate Limiting
 
 For API rate limits, configure pause intervals:
@@ -213,8 +153,6 @@ for model_type in models:
 ```
 
 # Condition Ladder
-
-Here is a simple usage guide in English for running the temporal levels. You can save this as `USAGE.md`.
 
 ---
 
